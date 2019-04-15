@@ -68,7 +68,7 @@ class EssentialTest:
     
     def getusers(self):
         users = self.cam.devicemgmt.GetUsers()
-        if users != []:
+        if users is None:
             return str(users)
         else:
             return 'Function does not work, sorry'
@@ -135,10 +135,10 @@ class EssentialTest:
             return 'Device does not support PTZ service'
         try:
             try:
-                pos.PanTilt._x
-                pos.PanTilt._y
-            except AttributeError:
+                x = pos.PanTilt._x
+                y = pos.PanTilt._y
                 x_z = pos.Zoom._x
+            except AttributeError:
                 if x_z + 0.1 < 1:
                     x_z1 = x_z + 0.1
                 else:
@@ -153,7 +153,7 @@ class EssentialTest:
                     return 'AbsoluteMove supported partly, works only zoom. Current zoom coordinates: ' + str(x_z)
                 else:
                     return 'AbsoluteMove is not supported'   
-            x_z, x, y = pos.Zoom._x, pos.PanTilt._x, pos.PanTilt._y
+            # x_z, x, y = pos.Zoom._x, pos.PanTilt._x, pos.PanTilt._y
             if x + 0.1 < 1:
                 x1 = x + 0.1
             else:
@@ -234,14 +234,6 @@ class EssentialTest:
         req_goto_home = ptz.create_type('GotoHomePosition')
         req_goto_home.ProfileToken = token
 
-        pos = self.returnpos(ptz, token)
-        if pos == False:
-            return 'PTZ service is not supported'
-        elif pos.x_z == False:
-            
-
-
-
         def left(req_move, req_stop, ptz, token):
             pos1 = self.returnpos(ptz, token).x
             req_move.Velocity.Zoom._x = 0.0
@@ -251,10 +243,11 @@ class EssentialTest:
             sleep(1)
             ptz.Stop(req_stop)
             pos2 = self.returnpos(ptz, token).x
-            print pos1 - pos2
+            # print pos1 - pos2
             return pos1 - pos2
 
         def right(req_move, req_stop, ptz, token):
+            ptz.Stop(req_stop)
             pos1 = self.returnpos(ptz, token).x
             req_move.Velocity.Zoom._x = 0.0
             req_move.Velocity.PanTilt._x = 0.5
@@ -263,17 +256,61 @@ class EssentialTest:
             sleep(1)
             ptz.Stop(req_stop)
             pos2 = self.returnpos(ptz, token).x
-            print pos1 - pos2
+            # print pos1 - pos2
             return pos1 - pos2
-        if round(left(req_move, req_stop, ptz, token), 1) + round(right(req_move, req_stop, ptz, token), 1) == 0:
-            return 'ContinuousMove is supported'
-        elif round(right(req_move, req_stop, ptz, token), 1) + round(left(req_move, req_stop, ptz, token), 1) == 0:
-            return 'ContinuousMove is supported'
+
+        def zoom_in(req_move, req_stop, ptz, token):
+            ptz.Stop(req_stop)
+            pos1 = self.returnpos(ptz, token).x_z
+            req_move.Velocity.PanTilt._x = 0.0
+            req_move.Velocity.PanTilt._y = 0.0
+            req_move.Velocity.Zoom._x = 0.5
+            ptz.ContinuousMove(req_move)
+            sleep(1)
+            ptz.Stop(req_stop)
+            pos2 = self.returnpos(ptz, token).x_z
+            return pos1 - pos2
+
+        def zoom_out(req_move, req_stop, ptz, token):
+            ptz.Stop(req_stop)
+            pos1 = self.returnpos(ptz, token).x_z
+            req_move.Velocity.PanTilt._x = 0.0
+            req_move.Velocity.PanTilt._y = 0.0
+            req_move.Velocity.Zoom._x = -0.5
+            ptz.ContinuousMove(req_move)
+            sleep(1)
+            ptz.Stop(req_stop)
+            pos2 = self.returnpos(ptz, token).x_z
+            return pos1 - pos2
+
+        pos = self.returnpos(ptz, token)
+        if pos is False:
+            return 'PTZ service is not supported'
+        elif pos.x and pos.y:
+            if round(left(req_move, req_stop, ptz, token), 1) + round(right(req_move, req_stop, ptz, token), 1) == 0:
+                if pos.x_z is False:
+                    return 'ContinuousMove is partly supported, zoom does not work'
+                else:
+                    return 'ContinuousMove is supported'
+            elif round(right(req_move, req_stop, ptz, token), 1) + round(left(req_move, req_stop, ptz, token), 1) == 0:
+                if pos.x_z is False:
+                    return 'ContinuousMove is partly supported, zoom does not work'
+                else:
+                    return 'ContinuousMove is supported'
+            else:
+                return 'ContinuousMove is not supported. Camera does not move'
+        elif pos.x is False and pos.y is False and pos.x_z >= 0:
+            if round(zoom_in(req_move, req_stop, ptz, token), 1) + round(zoom_out(req_move, req_stop, ptz, token), 1) == 0:
+                return 'ContinuousMove is partly supported, only zoom works'
+            elif round(zoom_out(req_move, req_stop, ptz, token), 1) + round(zoom_in(req_move, req_stop, ptz, token), 1) == 0:
+                return 'ContinuousMove is partly supported, only zoom works'
+            else:
+                return 'ContinuousMove is not supported'
         else:
-            return 'ContinuousMove is not supported. Camera does not move'
+            return 'ContinuousMove is not supported'
 
 
-Inst = EssentialTest('192.168.15.44', 8000, 'admin', 'Supervisor')
+Inst = EssentialTest('192.168.15.47', 80, 'admin', 'Supervisor')
 # print Inst.getusers()
 # print Inst.maxminpass()
 # print Inst.maxminuser()

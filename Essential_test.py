@@ -201,7 +201,6 @@ class EssentialTest:
             return 'GoToHomePosition is not supported'
 
     def returnpos(self, ptz, token):
-
         try:
             pos = ptz.GetStatus({"ProfileToken": token}).Position
         except AttributeError:
@@ -230,9 +229,6 @@ class EssentialTest:
 
         req_stop = ptz.create_type('Stop')
         req_stop.ProfileToken = token
-
-        req_goto_home = ptz.create_type('GotoHomePosition')
-        req_goto_home.ProfileToken = token
 
         def left(req_move, req_stop, ptz, token):
             pos1 = self.returnpos(ptz, token).x
@@ -286,7 +282,7 @@ class EssentialTest:
         pos = self.returnpos(ptz, token)
         if pos is False:
             return 'PTZ service is not supported'
-        elif pos.x and pos.y:
+        elif pos.x >= 0 and pos.y >= 0:
             if round(left(req_move, req_stop, ptz, token), 1) + round(right(req_move, req_stop, ptz, token), 1) == 0:
                 if pos.x_z is False:
                     return 'ContinuousMove is partly supported, zoom does not work'
@@ -309,12 +305,135 @@ class EssentialTest:
         else:
             return 'ContinuousMove is not supported'
 
+    def relativemove(self):
+        try:
+            ptz = self.cam.create_ptz_service()
+        except exceptions.ONVIFError:
+            return 'PTZ service is not supported'
+        token = self.cam.create_media_service().GetProfiles()[0]._token
+        rel_move = ptz.create_type('RelativeMove')
+        rel_move.ProfileToken = token
+        req_stop = ptz.create_type('Stop')
+        req_stop.ProfileToken = token
 
-Inst = EssentialTest('192.168.15.47', 80, 'admin', 'Supervisor')
+        node = ptz.GetNodes()[0]
+
+        # zoom_min = node.SupportedPTZSpaces.RelativeZoomTranslationSpace[0].XRange.Min
+        # zoom_max = node.SupportedPTZSpaces.RelativeZoomTranslationSpace[0].XRange.Max
+        # pan_min = node.SupportedPTZSpaces.RelativePanTiltTranslationSpace[0].XRange.Min
+        # pan_max = node.SupportedPTZSpaces.RelativePanTiltTranslationSpace[0].XRange.Max
+        # tilt_min = node.SupportedPTZSpaces.RelativePanTiltTranslationSpace[0].YRange.Min
+        # tilt_max = node.SupportedPTZSpaces.RelativePanTiltTranslationSpace[0].YRange.Max
+
+        def move_x(x, token, req_stop, rel_move, ptz):
+            ptz.Stop(req_stop)
+            pos1 = self.returnpos(ptz, token).x
+            rel_move.Translation.PanTilt._x = x
+            rel_move.Translation.PanTilt._y = 0
+            rel_move.Translation.Zoom._x = 0
+            ptz.RelativeMove(rel_move)
+            sleep(1)
+            ptz.Stop(req_stop)
+            pos2 = self.returnpos(ptz, token).x
+            # print 'Pan ' + str(pos1 - pos2)
+            return pos1 - pos2
+
+        def move_y(y, token, req_stop, rel_move, ptz):
+            ptz.Stop(req_stop)
+            pos1 = self.returnpos(ptz, token).y
+            rel_move.Translation.PanTilt._x = 0
+            rel_move.Translation.PanTilt._y = y
+            rel_move.Translation.Zoom._x = 0
+            ptz.RelativeMove(rel_move)
+            sleep(1)
+            ptz.Stop(req_stop)
+            pos2 = self.returnpos(ptz, token).y
+            # print 'Tilt ' + str(pos1 - pos2)
+            return pos1 - pos2
+       
+        def move_z(z, token, req_stop, rel_move, ptz):
+            ptz.Stop(req_stop)
+            pos1 = self.returnpos(ptz, token).x_z
+            rel_move.Translation.PanTilt._x = 0
+            rel_move.Translation.PanTilt._y = 0
+            rel_move.Translation.Zoom._x = z
+            ptz.RelativeMove(rel_move)
+            sleep(1)
+            ptz.Stop(req_stop)
+            pos2 = self.returnpos(ptz, token).x_z
+            # print 'Zoom ' + str(pos1 - pos2)
+            return pos1 - pos2 
+
+        d = 0.05
+        pos = self.returnpos(ptz, token)
+        movx = movy = movz = False
+        if pos is False:
+            return 'PTZ service is not supported'
+        if pos.x is not False:
+            try:
+                mov1 = round(move_x(d, token, req_stop, rel_move, ptz), 2)
+                mov2 = round(move_x(-d, token, req_stop, rel_move, ptz), 2)
+                if mov1 + mov2 == 0 and not mov1 == mov2 == 0:
+                    movx = True
+                else:
+                    mov3 = round(move_x(-d, token, req_stop, rel_move, ptz), 2)
+                    mov4 = round(move_x(d, token, req_stop, rel_move, ptz), 2)
+                    if mov3 + mov4 == 0 and not mov3 == mov4 == 0:
+                        movx = True
+            except exceptions.ONVIFError:
+                movx = False
+        if pos.y is not False:
+            try:
+                mov1 = round(move_y(d, token, req_stop, rel_move, ptz), 2)
+                mov2 = round(move_y(-d, token, req_stop, rel_move, ptz), 2)
+                if mov1 + mov2 == 0 and not mov1 == mov2 == 0:
+                    movy = True
+                else:
+                    mov3 = round(move_y(-d, token, req_stop, rel_move, ptz), 2)
+                    mov4 = round(move_y(d, token, req_stop, rel_move, ptz), 2)
+                    if mov3 + mov4 == 0 and not mov3 == mov4 == 0:
+                        movy = True
+            except exceptions.ONVIFError:
+                movy = False
+        if pos.x_z is not False:
+            try:
+                mov1 = round(move_z(-0.2, token, req_stop, rel_move, ptz), 2)
+                mov2 = round(move_z(0.2, token, req_stop, rel_move, ptz), 2)
+                # print 'mov1 ' + str(mov1) + ' mov2 ' + str(mov2)
+                if mov1 + mov2 == 0 and not mov1 == mov2 == 0:
+                    movz = True
+                else:
+                    mov3 = round(move_z(0.2, token, req_stop, rel_move, ptz), 2)
+                    mov4 = round(move_z(-0.2, token, req_stop, rel_move, ptz), 2)
+                    if mov3 + mov4 == 0 and not mov3 == mov4 == 0:
+                        movz = True
+            except exceptions.ONVIFError:
+                movz = False
+
+        if movx and movz and movy:
+            return 'RelativeMove is supported'
+        elif movx and movy and not movz:
+            return 'RelativeMove is supported partly, only PanTilt works'
+        elif movx and movz and not movy:
+            return 'RelativeMove is supported partly, only PanZoom works'
+        elif movy and movz and not movx:
+            return 'RelativeMove is supported partly, only TiltZoom works'
+        elif movz and not movx and not movy:
+            return 'RelativeMove is supported partly, only Zoom works'
+        elif movy and not movx and not movz:
+            return 'RelativeMove is supported partly, only Tilt works'
+        elif movx and not movy and not movz:
+            return 'RelativeMove is supported partly, only Pan works'
+        else:
+            return 'RelativeMove is not supported'
+
+
+Inst = EssentialTest('192.168.15.44', 8000, 'admin', 'Supervisor')
 # print Inst.getusers()
 # print Inst.maxminpass()
 # print Inst.maxminuser()
 # print Inst.maxusers()
 # print Inst.absolutemove()
 # print Inst.gotohomeposition()
-print Inst.continiousmove()
+# print Inst.continiousmove()
+print Inst.relativemove()

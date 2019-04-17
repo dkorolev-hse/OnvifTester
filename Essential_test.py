@@ -1,5 +1,5 @@
 from onvif import ONVIFCamera, exceptions
-from time import sleep
+from time import sleep, ctime
 import string
 from random import choice
 
@@ -231,6 +231,8 @@ class EssentialTest:
         req_stop.ProfileToken = token
 
         def left(req_move, req_stop, ptz, token):
+            sleep(0.3)
+            ptz.Stop(req_stop)
             pos1 = self.returnpos(ptz, token).x
             req_move.Velocity.Zoom._x = 0.0
             req_move.Velocity.PanTilt._x = -0.5
@@ -238,11 +240,13 @@ class EssentialTest:
             ptz.ContinuousMove(req_move)
             sleep(1)
             ptz.Stop(req_stop)
+            sleep(0.3)
             pos2 = self.returnpos(ptz, token).x
             # print pos1 - pos2
             return pos1 - pos2
 
         def right(req_move, req_stop, ptz, token):
+            sleep(0.3)
             ptz.Stop(req_stop)
             pos1 = self.returnpos(ptz, token).x
             req_move.Velocity.Zoom._x = 0.0
@@ -251,52 +255,62 @@ class EssentialTest:
             ptz.ContinuousMove(req_move)
             sleep(1)
             ptz.Stop(req_stop)
+            sleep(0.3)
             pos2 = self.returnpos(ptz, token).x
             # print pos1 - pos2
             return pos1 - pos2
 
         def zoom_in(req_move, req_stop, ptz, token):
+            sleep(0.3)
             ptz.Stop(req_stop)
             pos1 = self.returnpos(ptz, token).x_z
             req_move.Velocity.PanTilt._x = 0.0
             req_move.Velocity.PanTilt._y = 0.0
-            req_move.Velocity.Zoom._x = 0.5
+            req_move.Velocity.Zoom._x = 0.1
             ptz.ContinuousMove(req_move)
             sleep(1)
             ptz.Stop(req_stop)
+            sleep(0.3)
             pos2 = self.returnpos(ptz, token).x_z
             return pos1 - pos2
 
         def zoom_out(req_move, req_stop, ptz, token):
+            sleep(0.3)
             ptz.Stop(req_stop)
             pos1 = self.returnpos(ptz, token).x_z
             req_move.Velocity.PanTilt._x = 0.0
             req_move.Velocity.PanTilt._y = 0.0
-            req_move.Velocity.Zoom._x = -0.5
+            req_move.Velocity.Zoom._x = -0.1
             ptz.ContinuousMove(req_move)
             sleep(1)
             ptz.Stop(req_stop)
+            sleep(0.3)
             pos2 = self.returnpos(ptz, token).x_z
             return pos1 - pos2
 
         pos = self.returnpos(ptz, token)
+        # print 'x ', pos.x, ' y ', pos   .y, ' z ', pos.x_z
         if pos is False:
             return 'PTZ service is not supported'
-        elif pos.x >= 0 and pos.y >= 0:
+        elif pos.x is not False and pos.y is not False:
             if round(left(req_move, req_stop, ptz, token), 1) + round(right(req_move, req_stop, ptz, token), 1) == 0:
                 if pos.x_z is False:
                     return 'ContinuousMove is partly supported, zoom does not work'
                 elif round(zoom_in(req_move, req_stop, ptz, token), 1) + round(zoom_out(req_move, req_stop, ptz, token), 1) == 0:
-                    return 'ContinuousMove is partly supported, only zoom works'
-                elif round(zoom_out(req_move, req_stop, ptz, token), 1) + round(zoom_in(req_move, req_stop, ptz, token),                                                        1) == 0:
-                    return 'ContinuousMove is partly supported, only zoom works'
+                    return 'ContinuousMove is supported'
+                elif round(zoom_out(req_move, req_stop, ptz, token), 1) + round(zoom_in(req_move, req_stop, ptz, token), 1) == 0:
+                    return 'ContinuousMove is supported'
                 else:
-                    return 'ContinuousMove is not supported'
+                    return 'ContinuousMove is partly supported, zoom does not work'
             elif round(right(req_move, req_stop, ptz, token), 1) + round(left(req_move, req_stop, ptz, token), 1) == 0:
                 if pos.x_z is False:
                     return 'ContinuousMove is partly supported, zoom does not work'
-                else:
+                elif round(zoom_in(req_move, req_stop, ptz, token), 1) + round(zoom_out(req_move, req_stop, ptz, token), 1) == 0:
                     return 'ContinuousMove is supported'
+                elif round(zoom_out(req_move, req_stop, ptz, token), 1) + round(zoom_in(req_move, req_stop, ptz, token), 1) == 0:
+                    return 'ContinuousMove is supported'
+                else:
+                    return 'ContinuousMove is not supported 2'
             else:
                 return 'ContinuousMove is not supported. Camera does not move'
         elif pos.x is False and pos.y is False and pos.x_z >= 0:
@@ -305,9 +319,9 @@ class EssentialTest:
             elif round(zoom_out(req_move, req_stop, ptz, token), 1) + round(zoom_in(req_move, req_stop, ptz, token), 1) == 0:
                 return 'ContinuousMove is partly supported, only zoom works'
             else:
-                return 'ContinuousMove is not supported'
+                return 'ContinuousMove is not supported 3'
         else:
-            return 'ContinuousMove is not supported'
+            return 'ContinuousMove is not supported 4'
 
     def relativemove(self):
         try:
@@ -431,8 +445,17 @@ class EssentialTest:
         else:
             return 'RelativeMove is not supported'
 
+    def test(self):
+        ptz = self.cam.create_ptz_service()
+        token = self.cam.create_media_service().GetProfiles()[0]._token
 
-Inst = EssentialTest('192.168.15.44', 8000, 'admin', 'Supervisor')
+        while True:
+            sleep(1)
+            pos = ptz.GetStatus({"ProfileToken": token}).Position
+            print pos.Zoom._x
+
+
+Inst = EssentialTest('192.168.15.43', 80, 'admin', 'Supervisor')
 # print Inst.getusers()
 # print Inst.maxminpass()
 # print Inst.maxminuser()
@@ -441,3 +464,6 @@ Inst = EssentialTest('192.168.15.44', 8000, 'admin', 'Supervisor')
 # print Inst.gotohomeposition()
 print Inst.continiousmove()
 # print Inst.relativemove()
+
+
+# print Inst.test()

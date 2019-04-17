@@ -286,8 +286,12 @@ class EssentialTest:
             if round(left(req_move, req_stop, ptz, token), 1) + round(right(req_move, req_stop, ptz, token), 1) == 0:
                 if pos.x_z is False:
                     return 'ContinuousMove is partly supported, zoom does not work'
+                elif round(zoom_in(req_move, req_stop, ptz, token), 1) + round(zoom_out(req_move, req_stop, ptz, token), 1) == 0:
+                    return 'ContinuousMove is partly supported, only zoom works'
+                elif round(zoom_out(req_move, req_stop, ptz, token), 1) + round(zoom_in(req_move, req_stop, ptz, token),                                                        1) == 0:
+                    return 'ContinuousMove is partly supported, only zoom works'
                 else:
-                    return 'ContinuousMove is supported'
+                    return 'ContinuousMove is not supported'
             elif round(right(req_move, req_stop, ptz, token), 1) + round(left(req_move, req_stop, ptz, token), 1) == 0:
                 if pos.x_z is False:
                     return 'ContinuousMove is partly supported, zoom does not work'
@@ -435,5 +439,5 @@ Inst = EssentialTest('192.168.15.44', 8000, 'admin', 'Supervisor')
 # print Inst.maxusers()
 # print Inst.absolutemove()
 # print Inst.gotohomeposition()
-# print Inst.continiousmove()
-print Inst.relativemove()
+print Inst.continiousmove()
+# print Inst.relativemove()

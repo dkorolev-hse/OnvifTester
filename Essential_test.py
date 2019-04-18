@@ -131,7 +131,7 @@ class EssentialTest:
             ptz = self.cam.create_ptz_service()
             ptz.create_type("AbsoluteMove")
             pos = ptz.GetStatus({"ProfileToken": token}).Position
-        except exceptions.ONVIFError, AttributeError:
+        except (exceptions.ONVIFError, AttributeError):
             return 'Device does not support PTZ service'
         try:
             try:
@@ -139,20 +139,24 @@ class EssentialTest:
                 y = pos.PanTilt._y
                 x_z = pos.Zoom._x
             except AttributeError:
-                if x_z + 0.1 < 1:
-                    x_z1 = x_z + 0.1
-                else:
-                    x_z1 = x_z - 0.1
-                ptz.AbsoluteMove({"ProfileToken": token, "Position": {"Zoom": {"_x": x_z1}}})
-                sleep(3)
-                pos = ptz.GetStatus({"ProfileToken": token}).Position
-                x_z = pos.Zoom._x
-                dif3 = (round((x_z1-x_z), 3))
-                print dif3
-                if dif3 == 0.0:
-                    return 'AbsoluteMove supported partly, works only zoom. Current zoom coordinates: ' + str(x_z)
-                else:
-                    return 'AbsoluteMove is not supported'   
+                try:
+                    x_z = pos.Zoom._x
+                    if x_z + 0.1 < 1:
+                        x_z1 = x_z + 0.1
+                    else:
+                        x_z1 = x_z - 0.1
+                    ptz.AbsoluteMove({"ProfileToken": token, "Position": {"Zoom": {"_x": x_z1}}})
+                    sleep(3)
+                    pos = ptz.GetStatus({"ProfileToken": token}).Position
+                    x_z = pos.Zoom._x
+                    dif3 = (round((x_z1-x_z), 3))
+                    print dif3
+                    if dif3 == 0.0:
+                        return 'AbsoluteMove supported partly, works only zoom. Current zoom coordinates: ' + str(x_z)
+                    else:
+                        return 'AbsoluteMove is not supported'
+                except AttributeError:
+                    return 'AbsoluteMove is not supported'
             # x_z, x, y = pos.Zoom._x, pos.PanTilt._x, pos.PanTilt._y
             if x + 0.1 < 1:
                 x1 = x + 0.1
@@ -178,14 +182,14 @@ class EssentialTest:
             dif3 = (round((x_z1-x_z), 3))
             x_z, x, y = round(x_z, 2), round(x, 2), round(y, 2)
             if dif1 == 0.0 and dif2 == 0.0 and dif3 == 0.0:
-                result = 'AbsoluteMove is supported, current coordinates: ' + str(x) + ' ' + str(y) + ' ' + str(x_z)
-                return str(result)
+                return 'AbsoluteMove is supported, current coordinates: ' + str(x) + ' ' + str(y) + ' ' + str(x_z)
             elif dif1 == 0.0 and dif2 == 0.0 and dif3 != 0.0:
-                result = 'AbsoluteMove is supported, but Zoom does not work. Current coordinates: ' \
-                           + str(x) + ' ' + str(y) + ' ' + str(x_z)
-                return str(result)
+                return 'AbsoluteMove is partly supported, only PatTilt works. Current PanTilt coordinates: ' \
+                           + str(x) + ' ' + str(y)
+            elif dif1 != 0.0 and dif2 != 0.0 and dif3 == 0.0:
+                return 'AbsoluteMove is partly supported, only Zoom works. Current Zoom coordinates: ' + str(x_z)
             else:
-                return 'AbsoluteMove may be supported, but camera does not move'
+                return 'AbsoluteMove may be supported but does not work. Potential error with coordinates'
         except AttributeError:
             return 'AbsoluteMove is not supported, AttributeError '
 
@@ -445,25 +449,13 @@ class EssentialTest:
         else:
             return 'RelativeMove is not supported'
 
-    def test(self):
-        ptz = self.cam.create_ptz_service()
-        token = self.cam.create_media_service().GetProfiles()[0]._token
 
-        while True:
-            sleep(1)
-            pos = ptz.GetStatus({"ProfileToken": token}).Position
-            print pos.Zoom._x
-
-
-Inst = EssentialTest('192.168.15.43', 80, 'admin', 'Supervisor')
+Inst = EssentialTest('192.168.15.45', 80, 'admin', 'Supervisor')
 # print Inst.getusers()
 # print Inst.maxminpass()
 # print Inst.maxminuser()
 # print Inst.maxusers()
-# print Inst.absolutemove()
+print Inst.absolutemove()
 # print Inst.gotohomeposition()
-print Inst.continiousmove()
+# print Inst.continiousmove()
 # print Inst.relativemove()
-
-
-# print Inst.test()

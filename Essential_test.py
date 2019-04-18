@@ -189,7 +189,8 @@ class EssentialTest:
             elif dif1 != 0.0 and dif2 != 0.0 and dif3 == 0.0:
                 return 'AbsoluteMove is partly supported, only Zoom works. Current Zoom coordinates: ' + str(x_z)
             else:
-                return 'AbsoluteMove may be supported but does not work. Potential error with coordinates'
+                return 'AbsoluteMove may be supported, but it cannot be checked. ' \
+                       'Potential error with coordinates from GetStatus()'
         except AttributeError:
             return 'AbsoluteMove is not supported, AttributeError '
 
@@ -314,7 +315,7 @@ class EssentialTest:
                 elif round(zoom_out(req_move, req_stop, ptz, token), 1) + round(zoom_in(req_move, req_stop, ptz, token), 1) == 0:
                     return 'ContinuousMove is supported'
                 else:
-                    return 'ContinuousMove is not supported 2'
+                    return 'ContinuousMove is not supported'
             else:
                 return 'ContinuousMove is not supported. Camera does not move'
         elif pos.x is False and pos.y is False and pos.x_z >= 0:
@@ -323,9 +324,9 @@ class EssentialTest:
             elif round(zoom_out(req_move, req_stop, ptz, token), 1) + round(zoom_in(req_move, req_stop, ptz, token), 1) == 0:
                 return 'ContinuousMove is partly supported, only zoom works'
             else:
-                return 'ContinuousMove is not supported 3'
+                return 'ContinuousMove is not supported'
         else:
-            return 'ContinuousMove is not supported 4'
+            return 'ContinuousMove is not supported'
 
     def relativemove(self):
         try:
@@ -449,13 +450,100 @@ class EssentialTest:
         else:
             return 'RelativeMove is not supported'
 
+    def absoluteimaging(self):
+        media = self.cam.create_media_service()      # Creating media service
+        imaging = self.cam.create_imaging_service()  # Creating imaging service
+        vstoken = media.GetVideoSources()[0]._token  # Getting videosources token
+        options = imaging.GetMoveOptions({'VideoSourceToken': vstoken})
+        imaging.create_type('Move')                  # Creating new type of imaging
+        try:
+            options.Absolute
+        except AttributeError:
+            return 'Absolute imaging is not supported, AttributeError'
+        imaging.SetImagingSettings({'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'MANUAL'}}})
+        imaging.Stop({'VideoSourceToken': vstoken})
+        try:
+            imaging.GetStatus({'VideoSourceToken': vstoken})
+        except exceptions.ONVIFError:
+            return 'ONVIFError 400 while calling GetStatus(), try again later'
+        x0 = imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position
+        max_x = options.Absolute.Position.Max
+        if x0 + (max_x/2) < max_x:
+            x1 = x0 + max_x/2
+        else:
+            x1 = x0 - max_x/2
+        try:
+            imaging.Move({'VideoSourceToken': vstoken, 'Focus': {'Absolute': {'Position': x1, 'Speed': 0.8}}})
+            sleep(2)  # waiting
+            imaging.Stop({'VideoSourceToken': vstoken})  # stopping imaging
+            x2 = imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position
+            # print 'x0 ', x0, ' x1 ', x1, ' x2 ', x2
+            if abs(x1-x2) == 0.2 and not x0 == x2 == 0:
+                imaging.SetImagingSettings(
+                    {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
+                return 'Absolute imaging is supported'
+            else:
+                imaging.SetImagingSettings(
+                    {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
+                return 'Absolute imaging may be supported, but it cannot be checked. ' \
+                       'Potential error with coordinates from GetStatus()'
+        except AttributeError:          # Catching error
+            imaging.SetImagingSettings(
+                {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
+            return 'Absolute Imaging is not supported, AttributeError'
 
-Inst = EssentialTest('192.168.15.45', 80, 'admin', 'Supervisor')
+    def continuousimaging(self):
+        media = self.cam.create_media_service()      # Creating media service
+        imaging = self.cam.create_imaging_service()  # Creating imaging service
+        vstoken = media.GetVideoSources()[0]._token  # Getting videosources token
+        options = imaging.GetMoveOptions({'VideoSourceToken': vstoken})
+        imaging.create_type('Move')
+        try:
+            options.Continuous
+        except AttributeError:
+            return 'Continuous imaging is not supported'
+        max_speed = options.Continuous.Speed.Max
+
+        imaging.SetImagingSettings({'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'MANUAL'}}})
+        imaging.Stop({'VideoSourceToken': vstoken})
+        try:
+            imaging.GetStatus({'VideoSourceToken': vstoken})
+        except exceptions.ONVIFError:
+            return 'ONVIFError 400 while calling GetStatus(), try again later'
+        x0 = imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position
+        if x0 + (max_speed/2) < max_speed:
+            x1 = x0 + max_speed/2
+        else:
+            x1 = x0 - max_speed/2
+        try:
+            imaging.Move({'VideoSourceToken': vstoken, 'Focus': {'Continuous': {'Speed': x1}}})
+            sleep(1)
+            imaging.Stop({'VideoSourceToken': vstoken})
+            x2 = imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position
+            # print 'x0 ', x0, ' x1 ', x1, ' x2 ', x2
+            if abs(x1 - x2) == 0.4 and not x0 == x2 == 0:
+                imaging.SetImagingSettings(
+                    {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
+                return 'Continuous imaging is supported'
+            else:
+                imaging.SetImagingSettings(
+                    {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
+                return 'Continuous imaging may be supported, but it cannot be checked. ' \
+                       'Potential error with coordinates from GetStatus()'
+        except AttributeError:  # Catching error
+            imaging.SetImagingSettings(
+                {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
+            return 'Continuous Imaging is not supported, AttributeError'
+
+
+Inst = EssentialTest('192.168.15.43', 80, 'admin', 'Supervisor')
 # print Inst.getusers()
 # print Inst.maxminpass()
 # print Inst.maxminuser()
 # print Inst.maxusers()
-print Inst.absolutemove()
+# print Inst.absolutemove()
 # print Inst.gotohomeposition()
 # print Inst.continiousmove()
 # print Inst.relativemove()
+print Inst.absoluteimaging()
+# print Inst.continuousimaging()

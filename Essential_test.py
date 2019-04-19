@@ -1,5 +1,5 @@
 from onvif import ONVIFCamera, exceptions
-from time import sleep, ctime
+from time import sleep
 import string
 from random import choice
 
@@ -30,19 +30,17 @@ class EssentialTest:
         i = 4
         k = 1000
         z = 0
-        create = ''
         while i < 50:
             try:
                 name = self.genpass(7)
                 if a == 'chars':
-                    create = self.cam.devicemgmt.CreateUsers({'User': {'Username': name, 'Password': self.genchar(i), 'UserLevel': 'User'}})
+                    self.cam.devicemgmt.CreateUsers({'User': {'Username': name, 'Password': self.genchar(i), 'UserLevel': 'User'}})
                 elif a == 'digits':
-                    create = self.cam.devicemgmt.CreateUsers({'User': {'Username': name, 'Password': self.gendigits(i), 'UserLevel': 'User'}})
+                    self.cam.devicemgmt.CreateUsers({'User': {'Username': name, 'Password': self.gendigits(i), 'UserLevel': 'User'}})
                 elif a == 'chars+digits':
-                    create = self.cam.devicemgmt.CreateUsers({'User': {'Username': name, 'Password': self.genpass(i), 'UserLevel': 'User'}})
+                    self.cam.devicemgmt.CreateUsers({'User': {'Username': name, 'Password': self.genpass(i), 'UserLevel': 'User'}})
                 elif a == 'chars+digits+symbols':
-                    create = self.cam.devicemgmt.CreateUsers({'User': {'Username': name, 'Password': self.genhardpass(i),'UserLevel': 'User'}})
-                # sleep(1)
+                    self.cam.devicemgmt.CreateUsers({'User': {'Username': name, 'Password': self.genhardpass(i),'UserLevel': 'User'}})
                 if self.cam.devicemgmt.GetUsers()[-1].Username == name:
                     if i < k:
                         k = i
@@ -53,7 +51,6 @@ class EssentialTest:
                 else:
                     break
             except exceptions.ONVIFError:
-                # print create
                 i += 1
         if k != 1000 and z != 0:
             return 'The range for password length is from ' + str(k) + ' to ' + str(z) + ' for ' + a
@@ -575,27 +572,82 @@ class EssentialTest:
 
     def videoencoding(self):
         media = self.cam.create_media_service()
-        configs = media.GetVideoEncoderConfigurations()
         encoders = []
         try:
+            configs = media.GetVideoEncoderConfigurations()
             for i in configs:
                 encoders.append(i.Encoding)
-            encoders = list(set(encoders))
-            return encoders
+            return list(set(encoders))
         except AttributeError:
             return 'AttributeError, something is wrong'
 
     def videoresolutions(self):
         media = self.cam.create_media_service()
-        configs = media.GetVideoEncoderConfigurations()
         res = []
         try:
+            configs = media.GetVideoEncoderConfigurations()
             for i in configs:
                 res.append(str(i.Resolution.Width) + 'x' + str(i.Resolution.Height))
-            res = list(set(res))
-            return res
+            return list(set(res))
         except AttributeError:
             return 'Attribute error, something is wrong'
+
+    def audioencoding(self):
+        media = self.cam.create_media_service()
+        try:
+            audio = []
+            configs = media.GetAudioEncoderConfigurations()
+            for i in configs:
+                audio.append(i.Encoding)
+            return list(set(audio))
+        except AttributeError:
+            return 'Attribute error, something is wrong'
+
+    def imagingsettings(self):
+        media = self.cam.create_media_service()      # Creating media service
+        imaging = self.cam.create_imaging_service()  # Creating imaging service
+        vstoken = media.GetVideoSources()[0]._token  # Getting videosources token
+        settings = imaging.GetImagingSettings({'VideoSourceToken': vstoken})
+        # print settings
+        try:
+            features = ''
+            for feature in settings:
+                features += str(feature[0]) + '\n'
+            return str(features[:-1])
+        except AttributeError:
+            return 'Attribute error, something is wrong'
+
+    def currentposition(self):
+        media = self.cam.create_media_service()  # Creating media service
+        token = media.GetProfiles()[0]._token
+        vstoken = media.GetVideoSources()[0]._token  # Getting videosources token
+        focus = ''
+        try:
+            imaging = self.cam.create_imaging_service()  # Creating imaging service
+        except exceptions.ONVIFError:
+            return 'Imaging service is not supported'
+        try:
+            focus = str(round(imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position, 2))
+        except (AttributeError, exceptions.ONVIFError):
+            focus = 'None'
+        try:
+            ptz = self.cam.create_ptz_service()
+        except exceptions.ONVIFError:
+            return 'PTZ service is not supported'
+
+        try:
+            pos = ptz.GetStatus({"ProfileToken": token}).Position
+        except AttributeError:
+            return 'AttributeError, something is wrong'
+        try:
+            pos.z = str(round(pos.Zoom._x, 2))
+        except AttributeError:
+            pos.z = 'None'
+        try:
+            pos.x, pos.y = str(round(pos.PanTilt._x, 2)), str(round(pos.PanTilt._y, 2))
+        except AttributeError:
+            pos.x, pos.y = 'None', 'None'
+        return 'x: ' + pos.x + ' y: ' + pos.y + ' z: ' + pos.z + ' focus: ' + focus
 
 
 Inst = EssentialTest('192.168.15.44', 8000, 'admin', 'Supervisor')
@@ -611,4 +663,7 @@ Inst = EssentialTest('192.168.15.44', 8000, 'admin', 'Supervisor')
 # print Inst.continuousimaging()
 # print Inst.relativeimaging()
 # print Inst.videoencoding()
-print Inst.videoresolutions()
+# print Inst.videoresolutions()
+# print Inst.audioencoding()
+# print Inst.imagingsettings()
+print Inst.currentposition()

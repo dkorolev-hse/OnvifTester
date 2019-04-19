@@ -573,8 +573,32 @@ class EssentialTest:
                 {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
             return 'Relative Imaging is not supported, AttributeError'
 
+    def videoencoding(self):
+        media = self.cam.create_media_service()
+        configs = media.GetVideoEncoderConfigurations()
+        encoders = []
+        try:
+            for i in configs:
+                encoders.append(i.Encoding)
+            encoders = list(set(encoders))
+            return encoders
+        except AttributeError:
+            return 'AttributeError, something is wrong'
 
-Inst = EssentialTest('192.168.15.43', 80, 'admin', 'Supervisor')
+    def videoresolutions(self):
+        media = self.cam.create_media_service()
+        configs = media.GetVideoEncoderConfigurations()
+        res = []
+        try:
+            for i in configs:
+                res.append(str(i.Resolution.Width) + 'x' + str(i.Resolution.Height))
+            res = list(set(res))
+            return res
+        except AttributeError:
+            return 'Attribute error, something is wrong'
+
+
+Inst = EssentialTest('192.168.15.44', 8000, 'admin', 'Supervisor')
 # print Inst.getusers()
 # print Inst.maxminpass()
 # print Inst.maxminuser()
@@ -585,4 +609,6 @@ Inst = EssentialTest('192.168.15.43', 80, 'admin', 'Supervisor')
 # print Inst.relativemove()
 # print Inst.absoluteimaging()
 # print Inst.continuousimaging()
-print Inst.relativeimaging()
+# print Inst.relativeimaging()
+# print Inst.videoencoding()
+print Inst.videoresolutions()

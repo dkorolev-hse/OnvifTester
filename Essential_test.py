@@ -461,12 +461,12 @@ class EssentialTest:
         except AttributeError:
             return 'Absolute imaging is not supported, AttributeError'
         imaging.SetImagingSettings({'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'MANUAL'}}})
-        imaging.Stop({'VideoSourceToken': vstoken})
+        imaging.Stop({'VideoSourceToken': vstoken}) 
         try:
             imaging.GetStatus({'VideoSourceToken': vstoken})
         except exceptions.ONVIFError:
             return 'ONVIFError 400 while calling GetStatus(), try again later'
-        x0 = imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position
+        x0 = round(imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position, 2)
         max_x = options.Absolute.Position.Max
         if x0 + (max_x/2) < max_x:
             x1 = x0 + max_x/2
@@ -476,9 +476,9 @@ class EssentialTest:
             imaging.Move({'VideoSourceToken': vstoken, 'Focus': {'Absolute': {'Position': x1, 'Speed': 0.8}}})
             sleep(2)  # waiting
             imaging.Stop({'VideoSourceToken': vstoken})  # stopping imaging
-            x2 = imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position
+            x2 = round(imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position, 2)
             # print 'x0 ', x0, ' x1 ', x1, ' x2 ', x2
-            if abs(x1-x2) == 0.2 and not x0 == x2 == 0:
+            if abs(x1-x2) == 0 and not x0 == x2 == 0:
                 imaging.SetImagingSettings(
                     {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
                 return 'Absolute imaging is supported'
@@ -510,7 +510,7 @@ class EssentialTest:
             imaging.GetStatus({'VideoSourceToken': vstoken})
         except exceptions.ONVIFError:
             return 'ONVIFError 400 while calling GetStatus(), try again later'
-        x0 = imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position
+        x0 = round(imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position, 2)
         if x0 + (max_speed/2) < max_speed:
             x1 = x0 + max_speed/2
         else:
@@ -519,9 +519,9 @@ class EssentialTest:
             imaging.Move({'VideoSourceToken': vstoken, 'Focus': {'Continuous': {'Speed': x1}}})
             sleep(1)
             imaging.Stop({'VideoSourceToken': vstoken})
-            x2 = imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position
+            x2 = round(imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position, 2)
             # print 'x0 ', x0, ' x1 ', x1, ' x2 ', x2
-            if abs(x1 - x2) == 0.4 and not x0 == x2 == 0:
+            if abs(x1 - x2) == 0 and not x0 == x2 == 0:
                 imaging.SetImagingSettings(
                     {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
                 return 'Continuous imaging is supported'
@@ -535,6 +535,44 @@ class EssentialTest:
                 {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
             return 'Continuous Imaging is not supported, AttributeError'
 
+    def relativeimaging(self):
+        media = self.cam.create_media_service()      # Creating media service
+        imaging = self.cam.create_imaging_service()  # Creating imaging service
+        vstoken = media.GetVideoSources()[0]._token  # Getting videosources token
+        options = imaging.GetMoveOptions({'VideoSourceToken': vstoken})
+        imaging.create_type('Move')
+        try:
+            options.Relative
+        except AttributeError:
+            return 'Continuous imaging is not supported'
+        imaging.SetImagingSettings({'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'MANUAL'}}})
+        imaging.Stop({'VideoSourceToken': vstoken})
+        x0 = round(imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position, 2)
+        max_x = options.Relative.Distance.Max
+        if x0 + (max_x/2) < max_x:
+            x1 = x0 + max_x/2
+        else:
+            x1 = x0 - max_x/2
+        try:
+            imaging.Move({'VideoSourceToken': vstoken, 'Focus': {'Relative': {'Distance': x1, 'Speed': 0.8}}})
+            sleep(2)  # waiting
+            imaging.Stop({'VideoSourceToken': vstoken})  # stopping imaging
+            x2 = round(imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position, 2)
+            # print 'x0 ', x0, ' x1 ', x1, ' x2 ', x2
+            if abs(x1-x2) == 0 and not x0 == x2 == 0:
+                imaging.SetImagingSettings(
+                    {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
+                return 'Relative imaging is supported'
+            else:
+                imaging.SetImagingSettings(
+                    {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
+                return 'Relative imaging may be supported, but it cannot be checked. ' \
+                       'Potential error with coordinates from GetStatus()'
+        except AttributeError:          # Catching error
+            imaging.SetImagingSettings(
+                {'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'AUTO'}}})
+            return 'Relative Imaging is not supported, AttributeError'
+
 
 Inst = EssentialTest('192.168.15.43', 80, 'admin', 'Supervisor')
 # print Inst.getusers()
@@ -545,5 +583,6 @@ Inst = EssentialTest('192.168.15.43', 80, 'admin', 'Supervisor')
 # print Inst.gotohomeposition()
 # print Inst.continiousmove()
 # print Inst.relativemove()
-print Inst.absoluteimaging()
+# print Inst.absoluteimaging()
 # print Inst.continuousimaging()
+print Inst.relativeimaging()

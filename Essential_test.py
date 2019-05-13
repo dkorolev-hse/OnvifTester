@@ -65,7 +65,7 @@ class EssentialTest:
     
     def getusers(self):
         users = self.cam.devicemgmt.GetUsers()
-        if users is None:
+        if users is not None:
             return str(users)
         else:
             return 'Function does not work, sorry'
@@ -91,7 +91,7 @@ class EssentialTest:
         if k != 1000 and z != 0:
             return 'The range for username length is from ' + str(k) + ' to ' + str(z)
         else:
-            return 'No user has been created. Something is wrong'
+            return 'No user has been created. Can not obtain username length properties Something is wrong'
 
     def maxusers(self):
         k = []
@@ -541,7 +541,7 @@ class EssentialTest:
         try:
             options.Relative
         except AttributeError:
-            return 'Continuous imaging is not supported'
+            return 'Relative imaging is not supported'
         imaging.SetImagingSettings({'VideoSourceToken': vstoken, 'ImagingSettings': {'Focus': {'AutoFocusMode': 'MANUAL'}}})
         imaging.Stop({'VideoSourceToken': vstoken})
         x0 = round(imaging.GetStatus({'VideoSourceToken': vstoken}).FocusStatus20.Position, 2)
@@ -597,11 +597,108 @@ class EssentialTest:
         try:
             audio = []
             configs = media.GetAudioEncoderConfigurations()
+            print configs
             for i in configs:
                 audio.append(i.Encoding)
             return list(set(audio))
         except AttributeError:
             return 'Attribute error, something is wrong'
+
+    def getbrightness(self):
+        media = self.cam.create_media_service()
+        imaging = self.cam.create_imaging_service()
+        vstoken = media.GetVideoSources()[0]._token
+        f1 = True
+        f2 = True
+        settings = imaging.GetImagingSettings({'VideoSourceToken': vstoken})
+        options = imaging.GetOptions({'VideoSourceToken': vstoken})
+        try:
+            Min = options.Brightness.Min
+            Max = options.Brightness.Max
+        except AttributeError:
+            f1 = False
+        try:
+            Curr = settings.Brightness
+        except AttributeError:
+            f2 = False
+        if f1 and f2:
+            return 'Min: ' + str(Min) + ' Curr: ' + str(Curr) + ' Max: ' + str(Max)
+        elif f1 and not f2:
+            return 'Min: ' + str(Min) + ' Curr: ' + 'NULL' + ' Max: ' + str(Max)
+        elif not f1:
+            return 'Brightness not supported'
+
+    def setbrightness(self, value):
+        media = self.cam.create_media_service()
+        imaging = self.cam.create_imaging_service()
+        vstoken = media.GetVideoSources()[0]._token
+        options = imaging.GetOptions({'VideoSourceToken': vstoken})
+        get0 = imaging.GetImagingSettings({'VideoSourceToken': vstoken})
+        try:
+            Min = options.Brightness.Min
+            Max = options.Brightness.Max
+            br0 = get0.Brightness
+            if Min < value < Max:
+                imaging.SetImagingSettings({'VideoSourceToken': vstoken, 'ImagingSettings': {'Brightness': value}})
+            else:
+                return 'Value given is out of range'
+            get1 = imaging.GetImagingSettings({'VideoSourceToken': vstoken})
+            br1 = get1.Brightness
+            if br1 == value:
+                imaging.SetImagingSettings({'VideoSourceToken': vstoken, 'ImagingSettings': {'Brightness': br0}})
+                return 'Setbrightness works. Current value: ', br1
+            else:
+                return 'Setbrightness does not work'
+        except AttributeError:
+            return 'Setbrightness does not work, AttributeError'
+
+
+
+    def stepbrightness(self):
+        media = self.cam.create_media_service()
+        imaging = self.cam.create_imaging_service()
+        vstoken = media.GetVideoSources()[0]._token
+        set1 = imaging.GetImagingSettings({'VideoSourceToken': vstoken})
+        options = imaging.GetOptions({'VideoSourceToken': vstoken})
+        # print set1
+        step = 100000
+        percmin = 1000000
+
+        try:
+            br0 = set1.Brightness
+            br1 = br0
+            perc = 0.0000001
+            for h in range(6):
+                n = 7
+                for i in range(6):
+                    k = 1
+                    while k < 7:
+                        br1 += perc
+                        imaging.SetImagingSettings({'VideoSourceToken': vstoken, 'ImagingSettings': {'Brightness': br1}})
+                        br2 = imaging.GetImagingSettings({'VideoSourceToken': vstoken}).Brightness
+                        if round(br1, n) == round(br2, n):
+                            # print 'br1 = ', br1, ' br2 = ', br2
+                            # print 'Round Br1 = ', round(br1, n), 'Round Br2 = ', round(br2, n), 'N = ', n
+                            percmin = k * (0.0000001 * pow(10, i))
+                            # print 'K = ', k, ' I= ', i, 'N = ', n, 'Percmin = ', percmin
+                            break
+                        perc += 0.0000001 * pow(10, i)
+                        #
+                        k += 1
+                    n -= 1
+                    if percmin < step:
+                        step = percmin
+        except AttributeError:
+            return 'AttributeError, try again'
+        if step == 100000:
+            return 'Step was not calculated, try again'
+        else:
+            return 'Step is ' + '{:.0e}'.format(float(step))
+
+
+
+
+
 
     def imagingsettings(self):
         media = self.cam.create_media_service()      # Creating media service
@@ -609,6 +706,57 @@ class EssentialTest:
         vstoken = media.GetVideoSources()[0]._token  # Getting videosources token
         settings = imaging.GetImagingSettings({'VideoSourceToken': vstoken})
         # print settings
+        options = imaging.GetOptions({'VideoSourceToken': vstoken})
+        print options
+        try:
+            Backlight = ''
+            Backlight.Min = options.BacklightCompensation.Level.Min
+            Backlight.Max = options.BacklightCompenSharpnessevel.Max
+            Backlight.Curr = settings.Backlight
+        except AttributeError:
+            pass
+        try:
+            ColorSaturation = ''
+            ColorSaturation.Min = options.ColorSaturation.Min
+            ColorSaturation.Max = options.ColorSaturation.Max
+            ColorSaturation.Curr = settings.ColorSaturation
+        except AttributeError:
+            pass
+        try:
+            Contrast = ''
+            Contrast.Min = options.Contrast.Min
+            Contrast.Max = options.Contrast.Max
+            Contrast.Curr = settings.Contrast
+        except AttributeError:
+            pass
+        try:
+            Sharpness = ''
+            Sharpness.Min = options.Sharpness.Min
+            Sharpness.Max = options.Sharpness.Max
+            Sharpness.Curr = settings.Sharpness
+        except AttributeError:
+            pass
+        try:
+            WhiteBalance, WhiteBalance.YrGain, WhiteBalance.YbGain = '', '', ''
+            WhiteBalance.YrGain.Min = options.WhiteBalance.YrGain.Min
+            WhiteBalance.YrGain.Max = options.WhiteBalance.YrGain.Max
+            WhiteBalance.YbGain.Min = options.WhiteBalance.YbGain.Min
+            WhiteBalance.YbGain.Max = options.WhiteBalance.YbGain.Max
+            WhiteBalance.YrGain.Curr = settings.WhiteBalance.YrGain
+            WhiteBalance.YbGain.Curr = settings.WhiteBalance.YbGain
+        except AttributeError:
+            pass
+        try:
+            WideDynamicRange = ''
+            WideDynamicRange.Mode = options.WideDynamicRange.Mode
+        except AttributeError:
+            pass
+
+
+
+
+
+
         try:
             features = ''
             for feature in settings:
@@ -618,7 +766,7 @@ class EssentialTest:
             return 'Attribute error, something is wrong'
 
     def currentposition(self):
-        media = self.cam.create_media_service()  # Creating media service
+        media = self.cam.create_media_service()
         token = media.GetProfiles()[0]._token
         vstoken = media.GetVideoSources()[0]._token  # Getting videosources token
         focus = ''
@@ -649,8 +797,32 @@ class EssentialTest:
             pos.x, pos.y = 'None', 'None'
         return 'x: ' + pos.x + ' y: ' + pos.y + ' z: ' + pos.z + ' focus: ' + focus
 
+    def relays(self):
+        relays = self.cam.devicemgmt.GetRelayOutputs()
+        if relays:
+            token = relays[0]._token
+            mode0 = relays[0].Properties.Mode
+            if mode0 == 'Bistable':
+                mode1 = 'Monostable'
+            else:
+                mode1 = 'Bistable'
+            state = relays[0].Properties.IdleState
+            if state == 'closed':
+                state1 = ''
+            self.cam.devicemgmt.SetRelayOutputSettings({'RelayOutput': {'token': token, 'Properties': {
+                'Mode': mode1
+            }}})
+        return relays
 
-Inst = EssentialTest('192.168.15.44', 8000, 'admin', 'Supervisor')
+    def dynamicdns(self):
+        dns = self.cam.devicemgmt.GetDynamicDNS()
+        if dns:
+            return 'works', dns
+        else:
+            return 'dynamicdns is not supported'
+
+
+Inst = EssentialTest('192.168.11.24', 80, 'admin', 'Supervisor')
 # print Inst.getusers()
 # print Inst.maxminpass()
 # print Inst.maxminuser()
@@ -666,4 +838,9 @@ Inst = EssentialTest('192.168.15.44', 8000, 'admin', 'Supervisor')
 # print Inst.videoresolutions()
 # print Inst.audioencoding()
 # print Inst.imagingsettings()
-print Inst.currentposition()
+# print Inst.getbrightness()
+# print Inst.setbrightness(52)
+print Inst.stepbrightness()
+# print Inst.currentposition()
+# print Inst.relays()
+# print Inst.dynamicdns()
